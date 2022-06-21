@@ -171,6 +171,14 @@ class CalendarProvider extends Component {
     }
   }
 
+  onStartDayPress = (selectedDate) => {
+    const {tz} = this.props
+    const ttDay = moment(selectedDate).utc(moment.tz(tz)).format('YYYY-MM-DD')
+
+    this.setDate(ttDay, UPDATE_SOURCES.DAY_PRESS);
+
+  }
+
   renderTodayButton() {
     const {disabled, opacity, buttonY, buttonIcon} = this.state;
     const todayString = XDate.locales[XDate.defaultLocale].today || commons.todayString;
