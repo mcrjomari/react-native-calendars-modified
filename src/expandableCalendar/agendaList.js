@@ -8,7 +8,7 @@ import moment from 'moment';
 import styleConstructor from './style';
 import asCalendarConsumer from './asCalendarConsumer';
 import Theme from '../../../../App/Theme';
-//import sectionListGetItemLayout from 'react-native-section-list-get-item-layout'
+import sectionListGetItemLayout from 'react-native-section-list-get-item-layout'
 
 const commons = require('./commons');
 const UPDATE_SOURCES = commons.UPDATE_SOURCES;
@@ -50,6 +50,7 @@ class AgendaList extends Component {
     this._topSection = _.get(props, 'sections[0].title');
     this.didScroll = false;
     this.sectionScroll = false;
+    this.scrollIsDrag = false;
 
     this.viewabilityConfig = {
       itemVisiblePercentThreshold: 20 // 50 means if 50% of the item is visible
@@ -62,21 +63,21 @@ class AgendaList extends Component {
     this.lastIndex = null
     this.scrollState = false
     this.currProcess = null
-    // this.getItemLayout = sectionListGetItemLayout({
-    //   // The height of the row with rowData at the given sectionIndex and rowIndex 62.89
-    //   getItemHeight: (rowData, sectionIndex, rowIndex) =>  62.89,
-    //   // {
-    //   // const evDd =  moment(rowData.eventDate).format('YYYY-MM-DD')
-    //   // const currDD = moment.utc(moment.tz(this.props.tz)).format('YYYY-MM-DD')
-    //   //   return 62.89
-    //   // },
+    this.getItemLayout = sectionListGetItemLayout({
+      // The height of the row with rowData at the given sectionIndex and rowIndex 62.89
+      getItemHeight: (rowData, sectionIndex, rowIndex) =>  65,
+      // {
+      // const evDd =  moment(rowData.eventDate).format('YYYY-MM-DD')
+      // const currDD = moment.utc(moment.tz(this.props.tz)).format('YYYY-MM-DD')
+      //   return 62.89
+      // },
  
-    //   // These four properties are optional
-    //   getSeparatorHeight: () => 1 / PixelRatio.get(), // The height of your separators
-    //   getSectionHeaderHeight: () => 0, // The height of your section headers
-    //   getSectionFooterHeight: () => 0, // The height of your section footers
-    //   listHeaderHeight: 0, // The height of your list header
-    // })
+      // These four properties are optional
+      getSeparatorHeight: () => 1 / PixelRatio.get(), // The height of your separators
+      getSectionHeaderHeight: () => 0, // The height of your section headers
+      getSectionFooterHeight: () => 0, // The height of your section footers
+      listHeaderHeight: 0, // The height of your list header
+    })
   }
 
   getSectionIndex(date) {
@@ -117,7 +118,7 @@ class AgendaList extends Component {
       setTimeout(() => {
         const sectionIndex = this.getSectionIndex(date);
         this.lastIndex = sectionIndex
-        console.log('fitouohhaha')
+        // console.log('fitouohhaha')
         this.scrollToSection(sectionIndex);
       }, tm);
     }
@@ -146,12 +147,12 @@ class AgendaList extends Component {
     if (this.list.current && sectionIndex !== undefined && this.props.sections[sectionIndex]!==undefined) {
       this.currProcess = sectionIndex
       this.sectionScroll = true; // to avoid setDate() in onViewableItemsChanged
-      console.log(this._topSection,'jehjeheh',this.props.sections[sectionIndex],this.props.sections)
+      // console.log(this._topSection,'jehjeheh',this.props.sections[sectionIndex],this.props.sections)
       this._topSection = this.props.sections[sectionIndex].title;
       
       
       this.list.current.scrollToLocation({
-        animated: true,
+        animated: false,
         sectionIndex: sectionIndex,
         itemIndex: 0,
         viewPosition: 0, // position at the top
@@ -165,13 +166,13 @@ class AgendaList extends Component {
 
   onViewableItemsChanged = ({viewableItems}) => {
 
-   
-    if (viewableItems && !this.sectionScroll) {
+    // alert(`${Object.keys(viewableItems).length} : ${this.sectionScroll}`);
+    // && !this.sectionScroll
+    if (viewableItems && this.scrollIsDrag) {
       const topSection = _.get(viewableItems[0], 'section.title');
       if (topSection && topSection !== this._topSection) {
         this._topSection = topSection;
         //baguhin mo to
-
         // console.log({topSection,viewableItems})
 
        // this.props.setHidemySection(topSection)
@@ -193,15 +194,18 @@ class AgendaList extends Component {
    }else{
     this.props.setDirectionScroll('down')
    }
-   
+
     if (!this.didScroll) {
       this.didScroll = true;
     }
     _.invoke(this.props, 'onScroll', event);
+
+    if(!this._topSection) return false;
+    _.invoke(this.props, 'onAgendaChangeDate', this.sectionScroll);
   }
 
   onMomentumScrollBegin = (event) => {
-  
+    // this.sectionScroll = true;
     this.onEndReachedCalledDuringMomentum = false;
     _.invoke(this.props.context, 'setDisabled', true);
     _.invoke(this.props, 'onMomentumScrollBegin', event);
@@ -220,6 +224,16 @@ class AgendaList extends Component {
     _.invoke(this.props, 'onMomentumScrollEnd', event);
 
 
+  }
+
+  onScrollBeginDrag = (event) => {
+    if(!this.scrollIsDrag) this.scrollIsDrag = true;
+    _.invoke(this.props, 'onScrollBeginDragEvent', event);
+  }
+
+  onScrollEndDrag = (event) => {
+    if(this.scrollIsDrag) this.scrollIsDrag = false;
+    _.invoke(this.props, 'onScrollEndDragEvent', event);
   }
 
   onHeaderLayout = ({nativeEvent}) => {
@@ -290,7 +304,8 @@ class AgendaList extends Component {
   <SectionList
   {...this.props}
   ref={this.list}
-  initialNumToRender={this.props.sections.length > 50? 50: this.props.sections.length }
+  getItemLayout={this.getItemLayout}
+  initialNumToRender={this.props.sections.length > 50 ? 50: this.props.sections.length }
   maxToRenderPerBatch={50}
   windowSize={41}
   keyExtractor={this.keyExtractor}
@@ -301,6 +316,8 @@ class AgendaList extends Component {
   onScroll={this.onScroll}
   onMomentumScrollBegin={this.onMomentumScrollBegin}
   onMomentumScrollEnd={this.onMomentumScrollEnd}
+  onScrollBeginDrag={this.onScrollBeginDrag}
+  onScrollEndDrag={this.onScrollEndDrag}
   ListEmptyComponent={
     <View style={{ padding: 10 }}>
     <Typography variant='h1' textAlign='center' style={{fontWeight:'normal'}} color={Theme.Gray6} >
@@ -309,20 +326,24 @@ class AgendaList extends Component {
   </View>
   }
  onScrollToIndexFailed={(error) => {
-
+  //  alert(JSON.stringify(error));
     setTimeout(() => {
       if (this.props.sections.length !== 0 && this.list.current) {
-          this.list.current.scrollToLocation({
-          animated: false,
-          sectionIndex: 0,
-          itemIndex: 0,
-          viewPosition: 0, // position at the top
-          viewOffset: commons.isAndroid ? this.sectionHeight : 0
-        });
-
-        this.scrollToSection(this.lastIndex)
-        
-        
+        // this.list.current.scrollToLocation({
+        //   animated: false,
+        //   sectionIndex: this.lastIndex,
+        //   itemIndex: 0,
+        //   viewPosition: 0, // position at the top
+        //   viewOffset: commons.isAndroid ? this.sectionHeight : 0 
+        // });
+        this.scrollToSection(this.lastIndex);
+        // this.list.current.scrollToLocation({
+        //     animated: false,
+        //     itemIndex: -1,
+        //     sectionIndex: this.lastIndex,
+        //     viewPosition: 0,
+        //     viewOffset: commons.isAndroid ? this.sectionHeight : 0 
+        // });
        
       //   const thisInd = this.props.sections.length -1 
       //   const thisInd2 = thisInd/2
@@ -346,7 +367,7 @@ class AgendaList extends Component {
       //   },500)
         
       }
-    }, 120);
+    }, 500);
   }}
   //getItemLayout={this.getItemLayout}
   // onEndReached={this.onEndReached.bind(this)}
